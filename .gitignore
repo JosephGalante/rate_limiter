@@ -1,0 +1,8 @@
+bin/
+dist/
+.DS_Store
+.env
+.env.local
+coverage.out
+tmp/
+web/node_modules/

@@ -1,0 +1,44 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    command: ["go", "run", "./cmd/api"]
+    environment:
+      APP_ENV: "development"
+      SERVER_ADDR: ":8080"
+      ADMIN_TOKEN: "dev-admin-token"
+      POSTGRES_DSN: "postgres://postgres:postgres@postgres:5432/rate_limiter?sslmode=disable"
+      REDIS_ADDR: "redis:6379"
+      REDIS_DB: "0"
+      KEY_HASH_PEPPER: "dev-key-pepper"
+      CORS_ALLOWED_ORIGIN: "http://localhost:5173"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/app
+      - go-mod-cache:/go/pkg/mod
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rate_limiter
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    volumes:
+      - redis-data:/data
+
+volumes:
+  go-mod-cache:
+  postgres-data:
+  redis-data:
