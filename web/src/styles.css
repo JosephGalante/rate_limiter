@@ -23,10 +23,59 @@ body {
   min-width: 320px;
 }
 
+a {
+  color: inherit;
+}
+
 button,
 input,
 select {
   font: inherit;
+}
+
+.github-link {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(23, 32, 51, 0.9);
+  color: #f9fbff;
+  text-decoration: none;
+  box-shadow: 0 20px 45px rgba(18, 36, 74, 0.14);
+  backdrop-filter: blur(16px);
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.github-link:hover {
+  transform: translateY(-1px);
+  background: rgba(36, 75, 138, 0.94);
+  box-shadow: 0 24px 52px rgba(18, 36, 74, 0.18);
+}
+
+.github-link:focus-visible {
+  outline: 3px solid rgba(72, 187, 255, 0.3);
+  outline-offset: 3px;
+}
+
+.github-link__icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}
+
+.github-link__label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 code {
@@ -360,5 +409,17 @@ select {
 
   .actions {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .github-link {
+    top: 0.75rem;
+    right: 0.75rem;
+    padding: 0.8rem;
+  }
+
+  .github-link__label {
+    display: none;
   }
 }

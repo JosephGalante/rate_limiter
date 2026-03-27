@@ -4,6 +4,14 @@ Go backend + Redis token buckets + Postgres policy storage + a thin React UI for
 
 This project is intentionally backend-heavy. The UI exists to demonstrate the system, not to carry the system.
 
+## Live Demo
+
+- UI Website: https://distributed-rate-limiter-web.onrender.com
+- API: https://distributed-rate-limiter-api.onrender.com
+- Note: the Render free tier may cold-start on the first request, so the demo can take a few seconds to wake up.
+
+![Distributed rate limiter demo](docs/demo/rate-limiter-demo.gif)
+
 ## What It Demonstrates
 
 - Distributed rate limiting with Redis as shared hot-path state
