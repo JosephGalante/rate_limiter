@@ -15,17 +15,19 @@ type Props = {
   adminToken: string;
   apiBaseURL: string;
   onCreatedKey: (created: CreatedAPIKey) => Promise<void> | void;
+  onImportedKey: (apiKeyID: string, rawKey: string) => Promise<void> | void;
   onRefreshKeys: () => Promise<void>;
   selectableKeys: SelectableKey[];
 };
 
 export default function RequestSimulatorPage(props: Props) {
-  const { adminToken, apiBaseURL, onCreatedKey, onRefreshKeys, selectableKeys } = props;
+  const { adminToken, apiBaseURL, onCreatedKey, onImportedKey, onRefreshKeys, selectableKeys } = props;
   const [selectedKeyID, setSelectedKeyID] = useState("");
   const [routeID, setRouteID] = useState<RouteID>("ping");
   const [requestCount, setRequestCount] = useState(10);
   const [requestsPerSecond, setRequestsPerSecond] = useState(2);
   const [createKeyName, setCreateKeyName] = useState("simulator");
+  const [importRawKey, setImportRawKey] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -129,6 +131,24 @@ export default function RequestSimulatorPage(props: Props) {
     }
   }
 
+  async function handleImportRawKey(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErrorMessage("");
+
+    if (!selectedKeyID) {
+      setErrorMessage("Choose an API key before attaching a raw key.");
+      return;
+    }
+
+    if (!importRawKey.trim()) {
+      setErrorMessage("Paste a raw API key to attach it to this browser session.");
+      return;
+    }
+
+    await onImportedKey(selectedKeyID, importRawKey);
+    setImportRawKey("");
+  }
+
   return (
     <div className="page-grid">
       <section className="panel grid-two">
@@ -214,6 +234,23 @@ export default function RequestSimulatorPage(props: Props) {
           <p className="hint">
             Selectable keys with raw material in this browser: <strong>{selectableCount}</strong>
           </p>
+          {!selectedKey?.rawKey && selectedKey ? (
+            <form onSubmit={(event) => void handleImportRawKey(event)}>
+              <label className="field">
+                <span>Paste raw key for selected API key</span>
+                <input
+                  value={importRawKey}
+                  onChange={(event) => setImportRawKey(event.target.value)}
+                  placeholder="Paste a raw key from make demo-bootstrap or API key creation"
+                />
+              </label>
+              <div className="actions">
+                <button className="button secondary" type="submit">
+                  Remember raw key
+                </button>
+              </div>
+            </form>
+          ) : null}
         </div>
       </section>
 

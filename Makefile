@@ -1,5 +1,14 @@
+.PHONY: up up-detached down migrate-up migrate-down sqlc test demo-bootstrap
+
 up:
-	docker compose up --build api web postgres redis
+	docker compose up -d postgres redis
+	docker compose run --rm migrate
+	docker compose up --build api web
+
+up-detached:
+	docker compose up -d postgres redis
+	docker compose run --rm migrate
+	docker compose up -d --build api web
 
 down:
 	docker compose down
@@ -15,3 +24,6 @@ sqlc:
 
 test:
 	docker compose run --rm api go test ./...
+
+demo-bootstrap:
+	docker compose run --rm api go run ./cmd/demo-bootstrap

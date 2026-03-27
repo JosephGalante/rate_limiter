@@ -68,6 +68,28 @@ export default function App() {
     await refreshKeys();
   }
 
+  function rememberImportedKey(apiKeyID: string, rawKey: string) {
+    const normalizedRawKey = rawKey.trim();
+    if (!normalizedRawKey) {
+      return;
+    }
+
+    const selected = selectableKeys.find((item) => item.id === apiKeyID);
+    if (!selected) {
+      return;
+    }
+
+    setStoredKeys((current) => [
+      {
+        id: selected.id,
+        name: selected.name,
+        keyPrefix: selected.key_prefix,
+        rawKey: normalizedRawKey,
+      },
+      ...current.filter((item) => item.id !== selected.id),
+    ]);
+  }
+
   return (
     <BrowserRouter>
       <main className="app-shell">
@@ -125,6 +147,7 @@ export default function App() {
                 adminToken={adminToken}
                 apiBaseURL={apiBaseURL}
                 onCreatedKey={rememberCreatedKey}
+                onImportedKey={rememberImportedKey}
                 onRefreshKeys={refreshKeys}
                 selectableKeys={selectableKeys}
               />
