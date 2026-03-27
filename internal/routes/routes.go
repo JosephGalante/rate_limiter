@@ -8,15 +8,23 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/joe/distributed-rate-limiter/internal/auth"
 	"github.com/joe/distributed-rate-limiter/internal/config"
 	"github.com/joe/distributed-rate-limiter/internal/handlers"
 	appmiddleware "github.com/joe/distributed-rate-limiter/internal/middleware"
+	"github.com/joe/distributed-rate-limiter/internal/policies"
+	"github.com/joe/distributed-rate-limiter/internal/redisstate"
 )
 
 type Dependencies struct {
 	APIKeys   *handlers.APIKeysHandler
 	Policies  *handlers.PoliciesHandler
 	Inspector *handlers.InspectorHandler
+	Protected *handlers.ProtectedHandler
+
+	ProtectedAPIKeys *auth.APIKeyService
+	PolicyResolver   *policies.Resolver
+	BucketStore      *redisstate.BucketStore
 }
 
 func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.Time, dependencies Dependencies) http.Handler {
@@ -64,6 +72,16 @@ func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.
 	})
 
 	for _, definition := range ProtectedRoutes() {
+		if dependencies.Protected != nil && dependencies.ProtectedAPIKeys != nil && dependencies.PolicyResolver != nil && dependencies.BucketStore != nil {
+			protected := appmiddleware.APIKeyAuth(dependencies.ProtectedAPIKeys)(
+				appmiddleware.EnforceRateLimit(definition.ID, definition.Cost, dependencies.PolicyResolver, dependencies.BucketStore, time.Now)(
+					dependencies.Protected.Route(definition.ID, definition.Cost),
+				),
+			)
+			router.Method(definition.Method, definition.Path, protected)
+			continue
+		}
+
 		router.MethodFunc(definition.Method, definition.Path, stubHandler.ProtectedRoute(definition.ID, definition.Cost))
 	}
 

@@ -48,6 +48,7 @@ func main() {
 	apiKeyCodec := auth.NewAPIKeyCodec(cfg.Security.KeyHashPepper)
 	apiKeyCache := redisstate.NewAPIKeyAuthCache(redisClient, cfg.Redis.APIKeyCacheTTL)
 	policyProjectionStore := redisstate.NewPolicyProjectionStore(redisClient)
+	bucketStore := redisstate.NewBucketStore(redisClient)
 	apiKeyService := auth.NewAPIKeyService(queries, apiKeyCodec, apiKeyCache, logger)
 	policyService := policies.NewService(queries, policyProjectionStore)
 	policyResolver := policies.NewResolver(policyProjectionStore)
@@ -60,6 +61,11 @@ func main() {
 		APIKeys:   handlers.NewAPIKeysHandler(apiKeyService),
 		Policies:  handlers.NewPoliciesHandler(policyService),
 		Inspector: handlers.NewInspectorHandler(policyResolver),
+		Protected: handlers.NewProtectedHandler(),
+
+		ProtectedAPIKeys: apiKeyService,
+		PolicyResolver:   policyResolver,
+		BucketStore:      bucketStore,
 	})
 
 	server := &http.Server{

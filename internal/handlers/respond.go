@@ -44,6 +44,14 @@ func WriteInternalServerError(w http.ResponseWriter) {
 	writeError(w, http.StatusInternalServerError, "internal_server_error", "an unexpected error occurred")
 }
 
+func WriteServiceUnavailable(w http.ResponseWriter, code string, message string) {
+	writeError(w, http.StatusServiceUnavailable, code, message)
+}
+
+func WriteTooManyRequests(w http.ResponseWriter, code string, message string) {
+	writeError(w, http.StatusTooManyRequests, code, message)
+}
+
 func WriteNotFound(w http.ResponseWriter) {
 	writeError(w, http.StatusNotFound, "not_found", "resource not found")
 }
