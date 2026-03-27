@@ -14,6 +14,7 @@ import (
 	"github.com/joe/distributed-rate-limiter/internal/db"
 	dbsqlc "github.com/joe/distributed-rate-limiter/internal/db/sqlc"
 	"github.com/joe/distributed-rate-limiter/internal/handlers"
+	"github.com/joe/distributed-rate-limiter/internal/policies"
 	"github.com/joe/distributed-rate-limiter/internal/redisstate"
 	"github.com/joe/distributed-rate-limiter/internal/routes"
 )
@@ -43,13 +44,15 @@ func main() {
 	redisClient := redisstate.NewClient(cfg.Redis.Addr, cfg.Redis.DB)
 	defer redisClient.Close()
 
-	apiKeyQueries := dbsqlc.New(dbPool)
+	queries := dbsqlc.New(dbPool)
 	apiKeyCodec := auth.NewAPIKeyCodec(cfg.Security.KeyHashPepper)
 	apiKeyCache := redisstate.NewAPIKeyAuthCache(redisClient, cfg.Redis.APIKeyCacheTTL)
-	apiKeyService := auth.NewAPIKeyService(apiKeyQueries, apiKeyCodec, apiKeyCache, logger)
+	apiKeyService := auth.NewAPIKeyService(queries, apiKeyCodec, apiKeyCache, logger)
+	policyService := policies.NewService(queries)
 
 	router := routes.New(cfg, logger, version, time.Now().UTC(), routes.Dependencies{
-		APIKeys: handlers.NewAPIKeysHandler(apiKeyService),
+		APIKeys:  handlers.NewAPIKeysHandler(apiKeyService),
+		Policies: handlers.NewPoliciesHandler(policyService),
 	})
 
 	server := &http.Server{

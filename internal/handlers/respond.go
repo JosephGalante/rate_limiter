@@ -36,6 +36,10 @@ func WriteBadRequest(w http.ResponseWriter, code string, message string) {
 	writeError(w, http.StatusBadRequest, code, message)
 }
 
+func WriteConflict(w http.ResponseWriter, code string, message string) {
+	writeError(w, http.StatusConflict, code, message)
+}
+
 func WriteInternalServerError(w http.ResponseWriter) {
 	writeError(w, http.StatusInternalServerError, "internal_server_error", "an unexpected error occurred")
 }
