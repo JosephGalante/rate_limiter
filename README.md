@@ -9,8 +9,7 @@ This project is intentionally backend-heavy. The UI exists to demonstrate the sy
 - UI Website: https://distributed-rate-limiter-web.onrender.com
 - API: https://distributed-rate-limiter-api.onrender.com
 - Note: the Render free tier may cold-start on the first request, so the demo can take a few seconds to wake up.
-
-![Distributed rate limiter demo](docs/demo/rate-limiter-demo.gif)
+- Demo walkthrough video: [rate_limiter_demo.mp4](docs/demo/rate_limiter_demo.mp4)
 
 ## What It Demonstrates
 
@@ -74,11 +73,11 @@ web/
 
 ### Protected Routes
 
-| Route ID | Method | Path | Request Cost |
-| --- | --- | --- | ---: |
-| `ping` | `GET` | `/api/protected/ping` | 1 |
-| `orders` | `POST` | `/api/protected/orders` | 2 |
-| `report` | `GET` | `/api/protected/report` | 5 |
+| Route ID | Method | Path                    | Request Cost |
+| -------- | ------ | ----------------------- | -----------: |
+| `ping`   | `GET`  | `/api/protected/ping`   |            1 |
+| `orders` | `POST` | `/api/protected/orders` |            2 |
+| `report` | `GET`  | `/api/protected/report` |            5 |
 
 ### Policy Scopes And Precedence
 
