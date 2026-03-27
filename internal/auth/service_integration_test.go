@@ -12,6 +12,7 @@ import (
 
 	"github.com/joe/distributed-rate-limiter/internal/db"
 	dbsqlc "github.com/joe/distributed-rate-limiter/internal/db/sqlc"
+	"github.com/joe/distributed-rate-limiter/internal/testutil"
 )
 
 func TestAPIKeyServiceCreateResolveListDeactivate(t *testing.T) {
@@ -28,6 +29,7 @@ func TestAPIKeyServiceCreateResolveListDeactivate(t *testing.T) {
 		t.Fatalf("open db: %v", err)
 	}
 	defer pool.Close()
+	defer testutil.AcquireIntegrationLock(t, ctx, pool)()
 
 	resetAPIKeyTables(t, ctx, pool)
 

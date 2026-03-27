@@ -18,6 +18,7 @@ This repository is being built in reviewable chunks. The current state includes 
 - Redis-backed token bucket engine with optimistic locking and summary counters
 - Protected API endpoints enforced with API key auth, policy resolution, Redis buckets, and rate-limit headers
 - Bucket inspection, summary metrics, and blocked-request audit logging for observability
+- React + TypeScript request simulator app under `web/`
 - Docker Compose workflow for API, Postgres, and Redis
 
 ## Run the scaffold
@@ -42,6 +43,14 @@ Health check:
 
 ```bash
 curl http://localhost:8080/healthz
+```
+
+Start the request simulator UI:
+
+```bash
+cd web
+npm install
+npm run dev
 ```
 
 Admin ping:

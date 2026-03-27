@@ -36,6 +36,7 @@ func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.
 	router.Use(chimiddleware.RealIP)
 	router.Use(chimiddleware.Timeout(30 * time.Second))
 	router.Use(appmiddleware.Recoverer(logger))
+	router.Use(appmiddleware.CORS(cfg.UI.AllowedOrigin))
 
 	healthHandler := handlers.NewHealthHandler(startedAt, version)
 	stubHandler := handlers.NewStubHandler()
