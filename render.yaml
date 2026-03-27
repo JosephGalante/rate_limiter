@@ -9,7 +9,7 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    dockerCommand: /bin/sh -c "demo-bootstrap && rate-limiter"
+    dockerCommand: /usr/local/bin/start-render
     healthCheckPath: /healthz
     envVars:
       - key: APP_ENV
