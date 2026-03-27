@@ -325,8 +325,8 @@ The API service runs `demo-bootstrap && rate-limiter` on startup in the Render d
 2. In Render, create a new Blueprint from the repo.
 3. When Render prompts for `PUBLIC_DEMO_RAW_API_KEY`, provide a long random key that starts with `rls_live_`.
 4. Let Render provision the API, static site, Postgres, and Key Value services.
-5. Open the API service in Render and copy its public URL.
-6. Set `VITE_API_BASE_URL` on the `distributed-rate-limiter-web` static site to that API URL, then redeploy the static site.
+5. Render wires `VITE_API_BASE_URL` from the API service's `RENDER_EXTERNAL_URL`, so the static site should build against the public API URL automatically.
+6. Once the initial deploy finishes, open the static site URL and confirm the simulator can see the demo key.
 
 Example demo key generation:
 
@@ -350,7 +350,6 @@ Why this setup works:
 
 ### Render Caveats
 
-- The static site still needs the API URL wired into `VITE_API_BASE_URL`, because Blueprint files cannot automatically interpolate another service's public URL into a static-site build.
 - Free Render services are fine for a portfolio demo, but they are not production-grade and may sleep, restart, or lose free Key Value data.
 
 ## Manual API Examples

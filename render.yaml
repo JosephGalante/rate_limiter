@@ -43,7 +43,10 @@ services:
     staticPublishPath: ./web/dist
     envVars:
       - key: VITE_API_BASE_URL
-        sync: false
+        fromService:
+          name: distributed-rate-limiter-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
     routes:
       - type: rewrite
         source: /*
