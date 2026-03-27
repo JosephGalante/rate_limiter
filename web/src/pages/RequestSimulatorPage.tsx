@@ -14,6 +14,7 @@ type RequestLogItem = {
 type Props = {
   adminToken: string;
   apiBaseURL: string;
+  publicDemoMode: boolean;
   onCreatedKey: (created: CreatedAPIKey) => Promise<void> | void;
   onImportedKey: (apiKeyID: string, rawKey: string) => Promise<void> | void;
   onRefreshKeys: () => Promise<void>;
@@ -21,7 +22,7 @@ type Props = {
 };
 
 export default function RequestSimulatorPage(props: Props) {
-  const { adminToken, apiBaseURL, onCreatedKey, onImportedKey, onRefreshKeys, selectableKeys } = props;
+  const { adminToken, apiBaseURL, publicDemoMode, onCreatedKey, onImportedKey, onRefreshKeys, selectableKeys } = props;
   const [selectedKeyID, setSelectedKeyID] = useState("");
   const [routeID, setRouteID] = useState<RouteID>("ping");
   const [requestCount, setRequestCount] = useState(10);
@@ -153,25 +154,41 @@ export default function RequestSimulatorPage(props: Props) {
     <div className="page-grid">
       <section className="panel grid-two">
         <div>
-          <h2>Session Key</h2>
-          <p className="hint">
-            The backend only returns raw API keys once. This page stores keys you create in local browser storage so
-            they remain usable for simulation.
-          </p>
-          <form onSubmit={(event) => void handleCreateKey(event)}>
-            <label className="field">
-              <span>New key name</span>
-              <input value={createKeyName} onChange={(event) => setCreateKeyName(event.target.value)} />
-            </label>
-            <div className="actions">
-              <button className="button" type="submit" disabled={isCreatingKey}>
-                {isCreatingKey ? "Creating..." : "Create session API key"}
-              </button>
-              <button className="button secondary" type="button" onClick={() => void onRefreshKeys()}>
-                Refresh API keys
-              </button>
-            </div>
-          </form>
+          <h2>{publicDemoMode ? "Demo Key" : "Session Key"}</h2>
+          {publicDemoMode ? (
+            <>
+              <p className="hint">
+                This deployment runs in public demo mode. Use the preloaded demo key below to drive the shared Redis
+                buckets without exposing policy mutation routes to the internet.
+              </p>
+              <div className="actions">
+                <button className="button secondary" type="button" onClick={() => void onRefreshKeys()}>
+                  Refresh demo key
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="hint">
+                The backend only returns raw API keys once. This page stores keys you create in local browser storage so
+                they remain usable for simulation.
+              </p>
+              <form onSubmit={(event) => void handleCreateKey(event)}>
+                <label className="field">
+                  <span>New key name</span>
+                  <input value={createKeyName} onChange={(event) => setCreateKeyName(event.target.value)} />
+                </label>
+                <div className="actions">
+                  <button className="button" type="submit" disabled={isCreatingKey}>
+                    {isCreatingKey ? "Creating..." : "Create session API key"}
+                  </button>
+                  <button className="button secondary" type="button" onClick={() => void onRefreshKeys()}>
+                    Refresh API keys
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </div>
 
         <div>

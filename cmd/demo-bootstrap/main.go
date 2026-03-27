@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/joe/distributed-rate-limiter/internal/auth"
 	"github.com/joe/distributed-rate-limiter/internal/config"
 	"github.com/joe/distributed-rate-limiter/internal/db"
@@ -59,22 +61,24 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	redisClient := redisstate.NewClient(cfg.Redis.Addr, cfg.Redis.DB)
+	redisClient, err := redisstate.NewClient(cfg.Redis.Addr, cfg.Redis.DB)
+	if err != nil {
+		fail(err)
+	}
 	defer redisClient.Close()
 
 	queries := dbsqlc.New(dbPool)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	apiKeyCodec := auth.NewAPIKeyCodec(cfg.Security.KeyHashPepper)
 	apiKeyService := auth.NewAPIKeyService(
 		queries,
-		auth.NewAPIKeyCodec(cfg.Security.KeyHashPepper),
+		apiKeyCodec,
 		redisstate.NewAPIKeyAuthCache(redisClient, cfg.Redis.APIKeyCacheTTL),
 		logger,
 	)
 	policyService := policies.NewService(queries, redisstate.NewPolicyProjectionStore(redisClient))
 
-	createdKey, err := apiKeyService.Create(ctx, auth.CreateAPIKeyInput{
-		Name: fmt.Sprintf("demo-%s", time.Now().UTC().Format("20060102-150405")),
-	})
+	createdKey, err := ensureDemoAPIKey(ctx, cfg, queries, apiKeyService, apiKeyCodec)
 	if err != nil {
 		fail(fmt.Errorf("create demo api key: %w", err))
 	}
@@ -124,6 +128,55 @@ func main() {
 	if err := encoder.Encode(payload); err != nil {
 		fail(fmt.Errorf("encode bootstrap output: %w", err))
 	}
+}
+
+func ensureDemoAPIKey(
+	ctx context.Context,
+	cfg config.Config,
+	queries *dbsqlc.Queries,
+	service *auth.APIKeyService,
+	codec *auth.APIKeyCodec,
+) (auth.CreatedAPIKey, error) {
+	rawKey := strings.TrimSpace(cfg.Demo.RawAPIKey)
+	if cfg.Demo.PublicMode && rawKey == "" {
+		return auth.CreatedAPIKey{}, fmt.Errorf("PUBLIC_DEMO_RAW_API_KEY must be set when PUBLIC_DEMO_MODE=true")
+	}
+
+	if rawKey == "" {
+		return service.Create(ctx, auth.CreateAPIKeyInput{
+			Name: fmt.Sprintf("demo-%s", time.Now().UTC().Format("20060102-150405")),
+		})
+	}
+
+	keyHash := codec.Hash(rawKey)
+	if _, err := queries.GetAPIKeyByHash(ctx, keyHash); err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return auth.CreatedAPIKey{}, fmt.Errorf("get api key by hash: %w", err)
+		}
+
+		keyPrefix, prefixErr := codec.Prefix(rawKey)
+		if prefixErr != nil {
+			return auth.CreatedAPIKey{}, prefixErr
+		}
+
+		if _, createErr := queries.CreateAPIKey(ctx, dbsqlc.CreateAPIKeyParams{
+			Name:      "public-demo",
+			KeyPrefix: keyPrefix,
+			KeyHash:   keyHash,
+		}); createErr != nil {
+			return auth.CreatedAPIKey{}, fmt.Errorf("create stable demo api key: %w", createErr)
+		}
+	}
+
+	apiKey, err := service.ResolveActiveByRawKey(ctx, rawKey)
+	if err != nil {
+		return auth.CreatedAPIKey{}, fmt.Errorf("resolve stable demo api key: %w", err)
+	}
+
+	return auth.CreatedAPIKey{
+		APIKey: apiKey,
+		RawKey: rawKey,
+	}, nil
 }
 
 func ensurePolicy(ctx context.Context, service *policies.Service, input policies.CreatePolicyInput) bootstrapPolicyResult {

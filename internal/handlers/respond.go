@@ -40,6 +40,10 @@ func WriteConflict(w http.ResponseWriter, code string, message string) {
 	writeError(w, http.StatusConflict, code, message)
 }
 
+func WriteForbidden(w http.ResponseWriter, code string, message string) {
+	writeError(w, http.StatusForbidden, code, message)
+}
+
 func WriteInternalServerError(w http.ResponseWriter) {
 	writeError(w, http.StatusInternalServerError, "internal_server_error", "an unexpected error occurred")
 }

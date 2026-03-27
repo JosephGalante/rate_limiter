@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BrowserRouter, NavLink, Navigate, Route, Routes } from "react-router-dom";
 
-import { APIKeyRecord, CreatedAPIKey, listAPIKeys } from "./api";
+import { APIKeyRecord, CreatedAPIKey, DemoAPIKeyRecord, PublicConfig, getPublicConfig, listAPIKeys } from "./api";
 import { StoredKey, mergeSelectableKeys } from "./appTypes";
 import BucketInspectorPage from "./pages/BucketInspectorPage";
 import PolicyAdminPage from "./pages/PolicyAdminPage";
@@ -19,11 +19,13 @@ const defaultAdminToken = "dev-admin-token";
 export default function App() {
   const [apiBaseURL, setAPIBaseURL] = useState(() => loadString(storageKeys.apiBaseURL, defaultAPIBaseURL));
   const [adminToken, setAdminToken] = useState(() => loadString(storageKeys.adminToken, defaultAdminToken));
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null);
   const [apiKeys, setAPIKeys] = useState<APIKeyRecord[]>([]);
   const [storedKeys, setStoredKeys] = useState<StoredKey[]>(() => loadStoredKeys());
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoadingKeys, setIsLoadingKeys] = useState(false);
 
+  const publicDemoMode = publicConfig?.public_demo_mode ?? false;
   const selectableKeys = useMemo(() => mergeSelectableKeys(apiKeys, storedKeys), [apiKeys, storedKeys]);
 
   useEffect(() => {
@@ -39,10 +41,48 @@ export default function App() {
   }, [storedKeys]);
 
   useEffect(() => {
+    void refreshPublicConfig();
+  }, [apiBaseURL]);
+
+  useEffect(() => {
+    if (publicConfig == null) {
+      return;
+    }
+
+    if (publicConfig.public_demo_mode) {
+      const demoKey = publicConfig.demo_api_key;
+      setAPIKeys(demoKey ? [toAPIKeyRecord(demoKey)] : []);
+      if (demoKey) {
+        setStoredKeys((current) => [
+          toStoredKey(demoKey),
+          ...current.filter((item) => item.id !== demoKey.id),
+        ]);
+      }
+      return;
+    }
+
     void refreshKeys();
-  }, []);
+  }, [adminToken, apiBaseURL, publicConfig]);
+
+  async function refreshPublicConfig() {
+    try {
+      const resolved = await getPublicConfig(apiBaseURL);
+      setPublicConfig(resolved);
+      setErrorMessage("");
+    } catch (error) {
+      setPublicConfig({
+        public_demo_mode: false,
+        admin_mutations_enabled: true,
+        demo_api_key: null,
+      });
+      setErrorMessage(error instanceof Error ? error.message : "Failed to load app configuration.");
+    }
+  }
 
   async function refreshKeys() {
+    if (publicDemoMode) {
+      return;
+    }
     setIsLoadingKeys(true);
     setErrorMessage("");
     try {
@@ -97,16 +137,22 @@ export default function App() {
           <p className="eyebrow">Distributed Rate Limiting Service</p>
           <h1>Thin UI, backend-heavy story.</h1>
           <p className="lede">
-            Use the simulator to generate pressure, manage policies from the admin page, and inspect the resolved bucket
-            state that the backend is mutating in Redis.
+            Use the simulator to generate pressure and inspect the resolved Redis bucket state.
+            {publicDemoMode
+              ? " This deployment is running in public demo mode, so policy management is read-only."
+              : " Policy management stays available here for the full backend walkthrough."}
           </p>
         </header>
 
         <section className="panel connection-panel">
           <div className="panel-header">
             <h2>Connection</h2>
-            <button className="button secondary" onClick={() => void refreshKeys()} disabled={isLoadingKeys}>
-              {isLoadingKeys ? "Refreshing..." : "Refresh API keys"}
+            <button
+              className="button secondary"
+              onClick={() => void (publicDemoMode ? refreshPublicConfig() : refreshKeys())}
+              disabled={isLoadingKeys}
+            >
+              {isLoadingKeys ? "Refreshing..." : publicDemoMode ? "Refresh demo config" : "Refresh API keys"}
             </button>
           </div>
           <div className="field-row field-row--triple">
@@ -114,10 +160,18 @@ export default function App() {
               <span>API base URL</span>
               <input value={apiBaseURL} onChange={(event) => setAPIBaseURL(event.target.value)} />
             </label>
-            <label className="field">
-              <span>Admin token</span>
-              <input value={adminToken} onChange={(event) => setAdminToken(event.target.value)} />
-            </label>
+            {publicDemoMode ? (
+              <div className="selection-card selection-card--compact">
+                <span>Mode</span>
+                <strong>Public demo</strong>
+                <small>admin mutations disabled</small>
+              </div>
+            ) : (
+              <label className="field">
+                <span>Admin token</span>
+                <input value={adminToken} onChange={(event) => setAdminToken(event.target.value)} />
+              </label>
+            )}
             <div className="selection-card selection-card--compact">
               <span>Active API keys</span>
               <strong>{apiKeys.filter((item) => item.is_active).length}</strong>
@@ -132,7 +186,7 @@ export default function App() {
             Request Simulator
           </NavLink>
           <NavLink to="/policies" className={({ isActive }) => navClassName(isActive)}>
-            Policy Admin
+            {publicDemoMode ? "Policies" : "Policy Admin"}
           </NavLink>
           <NavLink to="/inspector" className={({ isActive }) => navClassName(isActive)}>
             Bucket Inspector
@@ -146,15 +200,22 @@ export default function App() {
               <RequestSimulatorPage
                 adminToken={adminToken}
                 apiBaseURL={apiBaseURL}
+                publicDemoMode={publicDemoMode}
                 onCreatedKey={rememberCreatedKey}
                 onImportedKey={rememberImportedKey}
-                onRefreshKeys={refreshKeys}
+                onRefreshKeys={publicDemoMode ? refreshPublicConfig : refreshKeys}
                 selectableKeys={selectableKeys}
               />
             }
           />
-          <Route path="/policies" element={<PolicyAdminPage adminToken={adminToken} apiBaseURL={apiBaseURL} apiKeys={apiKeys} />} />
-          <Route path="/inspector" element={<BucketInspectorPage adminToken={adminToken} apiBaseURL={apiBaseURL} apiKeys={apiKeys} />} />
+          <Route
+            path="/policies"
+            element={<PolicyAdminPage adminToken={adminToken} apiBaseURL={apiBaseURL} apiKeys={apiKeys} publicDemoMode={publicDemoMode} />}
+          />
+          <Route
+            path="/inspector"
+            element={<BucketInspectorPage adminToken={adminToken} apiBaseURL={apiBaseURL} apiKeys={apiKeys} publicDemoMode={publicDemoMode} />}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -183,4 +244,23 @@ function loadStoredKeys(): StoredKey[] {
 
 function navClassName(isActive: boolean): string {
   return isActive ? "tab-link tab-link--active" : "tab-link";
+}
+
+function toAPIKeyRecord(item: DemoAPIKeyRecord): APIKeyRecord {
+  return {
+    id: item.id,
+    name: item.name,
+    key_prefix: item.key_prefix,
+    is_active: item.is_active,
+    created_at: item.created_at,
+  };
+}
+
+function toStoredKey(item: DemoAPIKeyRecord): StoredKey {
+  return {
+    id: item.id,
+    name: item.name,
+    keyPrefix: item.key_prefix,
+    rawKey: item.raw_key,
+  };
 }

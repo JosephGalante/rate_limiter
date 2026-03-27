@@ -6,10 +6,11 @@ type Props = {
   adminToken: string;
   apiBaseURL: string;
   apiKeys: APIKeyRecord[];
+  publicDemoMode: boolean;
 };
 
 export default function BucketInspectorPage(props: Props) {
-  const { adminToken, apiBaseURL, apiKeys } = props;
+  const { adminToken, apiBaseURL, apiKeys, publicDemoMode } = props;
   const [routeID, setRouteID] = useState<RouteID>("ping");
   const [apiKeyID, setAPIKeyID] = useState("");
   const [effectivePolicy, setEffectivePolicy] = useState<EffectivePolicyInspectionResponse | null>(null);
@@ -28,8 +29,8 @@ export default function BucketInspectorPage(props: Props) {
 
     try {
       const [policy, bucket] = await Promise.all([
-        inspectEffectivePolicy(apiBaseURL, adminToken, routeID, apiKeyID || null),
-        inspectBucket(apiBaseURL, adminToken, routeID, apiKeyID || null),
+        inspectEffectivePolicy(apiBaseURL, adminToken, routeID, apiKeyID || null, publicDemoMode),
+        inspectBucket(apiBaseURL, adminToken, routeID, apiKeyID || null, publicDemoMode),
       ]);
 
       setEffectivePolicy(policy);
@@ -44,7 +45,7 @@ export default function BucketInspectorPage(props: Props) {
 
   async function refreshMetrics() {
     try {
-      setMetrics(await getMetricsSummary(apiBaseURL, adminToken));
+      setMetrics(await getMetricsSummary(apiBaseURL, adminToken, publicDemoMode));
     } catch {
       setMetrics(null);
     }

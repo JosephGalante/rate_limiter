@@ -71,6 +71,16 @@ export interface MetricsSummary {
   blocked_requests: number;
 }
 
+export interface DemoAPIKeyRecord extends APIKeyRecord {
+  raw_key: string;
+}
+
+export interface PublicConfig {
+  public_demo_mode: boolean;
+  admin_mutations_enabled: boolean;
+  demo_api_key: DemoAPIKeyRecord | null;
+}
+
 const protectedRoutes: Record<RouteID, { method: string; path: string }> = {
   ping: { method: "GET", path: "/api/protected/ping" },
   orders: { method: "POST", path: "/api/protected/orders" },
@@ -80,6 +90,10 @@ const protectedRoutes: Record<RouteID, { method: string; path: string }> = {
 export async function listAPIKeys(baseURL: string, adminToken: string): Promise<APIKeyRecord[]> {
   const payload = await adminRequest<{ api_keys: APIKeyRecord[] }>(baseURL, adminToken, "/api/admin/api-keys");
   return payload.api_keys ?? [];
+}
+
+export async function getPublicConfig(baseURL: string): Promise<PublicConfig> {
+  return publicRequest<PublicConfig>(baseURL, "/api/public/config");
 }
 
 export async function createAPIKey(baseURL: string, adminToken: string, name: string): Promise<CreatedAPIKey> {
@@ -112,8 +126,8 @@ export async function sendProtectedRequest(baseURL: string, rawKey: string, rout
   };
 }
 
-export async function listPolicies(baseURL: string, adminToken: string): Promise<PolicyRecord[]> {
-  const payload = await adminRequest<{ policies: PolicyRecord[] }>(baseURL, adminToken, "/api/admin/policies");
+export async function listPolicies(baseURL: string, adminToken: string, publicDemoMode: boolean): Promise<PolicyRecord[]> {
+  const payload = await readOnlyRequest<{ policies: PolicyRecord[] }>(baseURL, adminToken, publicDemoMode, "/policies");
   return payload.policies ?? [];
 }
 
@@ -148,16 +162,18 @@ export async function inspectEffectivePolicy(
   adminToken: string,
   routeID: RouteID,
   apiKeyID: string | null,
+  publicDemoMode: boolean,
 ): Promise<EffectivePolicyInspectionResponse> {
   const search = new URLSearchParams({ route_id: routeID });
   if (apiKeyID) {
     search.set("api_key_id", apiKeyID);
   }
 
-  return adminRequest<EffectivePolicyInspectionResponse>(
+  return readOnlyRequest<EffectivePolicyInspectionResponse>(
     baseURL,
     adminToken,
-    `/api/admin/inspect/effective-policy?${search.toString()}`,
+    publicDemoMode,
+    `/inspect/effective-policy?${search.toString()}`,
   );
 }
 
@@ -166,21 +182,23 @@ export async function inspectBucket(
   adminToken: string,
   routeID: RouteID,
   apiKeyID: string | null,
+  publicDemoMode: boolean,
 ): Promise<BucketInspectionResponse> {
   const search = new URLSearchParams({ route_id: routeID });
   if (apiKeyID) {
     search.set("api_key_id", apiKeyID);
   }
 
-  return adminRequest<BucketInspectionResponse>(
+  return readOnlyRequest<BucketInspectionResponse>(
     baseURL,
     adminToken,
-    `/api/admin/inspect/bucket?${search.toString()}`,
+    publicDemoMode,
+    `/inspect/bucket?${search.toString()}`,
   );
 }
 
-export async function getMetricsSummary(baseURL: string, adminToken: string): Promise<MetricsSummary> {
-  const payload = await adminRequest<{ metrics: MetricsSummary }>(baseURL, adminToken, "/api/admin/metrics/summary");
+export async function getMetricsSummary(baseURL: string, adminToken: string, publicDemoMode: boolean): Promise<MetricsSummary> {
+  const payload = await readOnlyRequest<{ metrics: MetricsSummary }>(baseURL, adminToken, publicDemoMode, "/metrics/summary");
   return payload.metrics;
 }
 
@@ -203,6 +221,28 @@ async function adminRequest<T>(baseURL: string, adminToken: string, path: string
   }
 
   return (await response.json()) as T;
+}
+
+async function publicRequest<T>(baseURL: string, path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(joinURL(baseURL, path), init);
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status})`);
+  }
+
+  return (await response.json()) as T;
+}
+
+async function readOnlyRequest<T>(
+  baseURL: string,
+  adminToken: string,
+  publicDemoMode: boolean,
+  pathSuffix: string,
+): Promise<T> {
+  if (publicDemoMode) {
+    return publicRequest<T>(baseURL, `/api/public${pathSuffix}`);
+  }
+
+  return adminRequest<T>(baseURL, adminToken, `/api/admin${pathSuffix}`);
 }
 
 async function parseJSON(response: Response): Promise<Record<string, unknown> | null> {

@@ -17,12 +17,14 @@ RUN go mod download
 
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/rate-limiter ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/demo-bootstrap ./cmd/demo-bootstrap
 
 FROM alpine:3.21 AS runtime
 
 RUN apk add --no-cache ca-certificates
 
 COPY --from=build /out/rate-limiter /usr/local/bin/rate-limiter
+COPY --from=build /out/demo-bootstrap /usr/local/bin/demo-bootstrap
 
 EXPOSE 8080
 

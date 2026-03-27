@@ -18,11 +18,12 @@ import (
 )
 
 type Dependencies struct {
-	APIKeys   *handlers.APIKeysHandler
-	Policies  *handlers.PoliciesHandler
-	Inspector *handlers.InspectorHandler
-	Metrics   *handlers.MetricsHandler
-	Protected *handlers.ProtectedHandler
+	PublicConfig *handlers.PublicConfigHandler
+	APIKeys      *handlers.APIKeysHandler
+	Policies     *handlers.PoliciesHandler
+	Inspector    *handlers.InspectorHandler
+	Metrics      *handlers.MetricsHandler
+	Protected    *handlers.ProtectedHandler
 
 	BlockedAuditor   *audit.Service
 	ProtectedAPIKeys *auth.APIKeyService
@@ -42,14 +43,44 @@ func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.
 	stubHandler := handlers.NewStubHandler()
 
 	router.Get("/healthz", healthHandler.Live)
+	if dependencies.PublicConfig != nil {
+		router.Get("/api/public/config", dependencies.PublicConfig.Show)
+	}
+
+	if cfg.Demo.PublicMode {
+		router.Route("/api/public", func(r chi.Router) {
+			if dependencies.Policies != nil {
+				r.Get("/policies", dependencies.Policies.List)
+			} else {
+				r.Get("/policies", stubHandler.NotImplemented("list public policies"))
+			}
+			if dependencies.Inspector != nil {
+				r.Get("/inspect/effective-policy", dependencies.Inspector.EffectivePolicy)
+				r.Get("/inspect/bucket", dependencies.Inspector.Bucket)
+			} else {
+				r.Get("/inspect/effective-policy", stubHandler.NotImplemented("inspect effective policy"))
+				r.Get("/inspect/bucket", stubHandler.NotImplemented("inspect bucket state"))
+			}
+			if dependencies.Metrics != nil {
+				r.Get("/metrics/summary", dependencies.Metrics.Summary)
+			} else {
+				r.Get("/metrics/summary", stubHandler.NotImplemented("inspect summary metrics"))
+			}
+		})
+	}
 
 	router.Route("/api/admin", func(r chi.Router) {
 		r.Use(appmiddleware.AdminAuth(cfg.Admin.Token))
 		r.Get("/ping", stubHandler.AdminPing)
 		if dependencies.APIKeys != nil {
 			r.Get("/api-keys", dependencies.APIKeys.List)
-			r.Post("/api-keys", dependencies.APIKeys.Create)
-			r.Post("/api-keys/{apiKeyID}/deactivate", dependencies.APIKeys.Deactivate)
+			if cfg.Demo.PublicMode {
+				r.Post("/api-keys", demoModeDisabled("create api key"))
+				r.Post("/api-keys/{apiKeyID}/deactivate", demoModeDisabled("deactivate api key"))
+			} else {
+				r.Post("/api-keys", dependencies.APIKeys.Create)
+				r.Post("/api-keys/{apiKeyID}/deactivate", dependencies.APIKeys.Deactivate)
+			}
 		} else {
 			r.Get("/api-keys", stubHandler.NotImplemented("list API keys"))
 			r.Post("/api-keys", stubHandler.NotImplemented("create API key"))
@@ -57,9 +88,15 @@ func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.
 		}
 		if dependencies.Policies != nil {
 			r.Get("/policies", dependencies.Policies.List)
-			r.Post("/policies", dependencies.Policies.Create)
-			r.Put("/policies/{policyID}", dependencies.Policies.Update)
-			r.Post("/policies/{policyID}/deactivate", dependencies.Policies.Deactivate)
+			if cfg.Demo.PublicMode {
+				r.Post("/policies", demoModeDisabled("create policy"))
+				r.Put("/policies/{policyID}", demoModeDisabled("update policy"))
+				r.Post("/policies/{policyID}/deactivate", demoModeDisabled("deactivate policy"))
+			} else {
+				r.Post("/policies", dependencies.Policies.Create)
+				r.Put("/policies/{policyID}", dependencies.Policies.Update)
+				r.Post("/policies/{policyID}/deactivate", dependencies.Policies.Deactivate)
+			}
 		} else {
 			r.Get("/policies", stubHandler.NotImplemented("list policies"))
 			r.Post("/policies", stubHandler.NotImplemented("create policy"))
@@ -99,4 +136,10 @@ func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.
 	})
 
 	return router
+}
+
+func demoModeDisabled(feature string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		handlers.WriteForbidden(w, "demo_mode_read_only", feature+" is disabled in public demo mode")
+	}
 }

@@ -42,7 +42,10 @@ func main() {
 		panic(err)
 	}
 
-	redisClient := redisstate.NewClient(cfg.Redis.Addr, cfg.Redis.DB)
+	redisClient, err := redisstate.NewClient(cfg.Redis.Addr, cfg.Redis.DB)
+	if err != nil {
+		panic(err)
+	}
 	defer redisClient.Close()
 
 	queries := dbsqlc.New(dbPool)
@@ -60,11 +63,12 @@ func main() {
 	}
 
 	router := routes.New(cfg, logger, version, time.Now().UTC(), routes.Dependencies{
-		APIKeys:   handlers.NewAPIKeysHandler(apiKeyService),
-		Policies:  handlers.NewPoliciesHandler(policyService),
-		Inspector: handlers.NewInspectorHandler(policyResolver, bucketStore),
-		Metrics:   handlers.NewMetricsHandler(bucketStore),
-		Protected: handlers.NewProtectedHandler(),
+		PublicConfig: handlers.NewPublicConfigHandler(cfg.Demo, apiKeyService),
+		APIKeys:      handlers.NewAPIKeysHandler(apiKeyService),
+		Policies:     handlers.NewPoliciesHandler(policyService),
+		Inspector:    handlers.NewInspectorHandler(policyResolver, bucketStore),
+		Metrics:      handlers.NewMetricsHandler(bucketStore),
+		Protected:    handlers.NewProtectedHandler(),
 
 		BlockedAuditor:   auditService,
 		ProtectedAPIKeys: apiKeyService,

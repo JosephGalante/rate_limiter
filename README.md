@@ -248,6 +248,12 @@ make migrate-down
 
 Existing conflicting policies are left in place rather than overwritten.
 
+If `PUBLIC_DEMO_MODE=true` and `PUBLIC_DEMO_RAW_API_KEY` is set, bootstrap becomes deterministic:
+
+- it ensures that exact raw key exists in Postgres
+- it keeps the key stable across restarts and redeploys
+- it keeps the demo-mode public config endpoint aligned with a real API key in the database
+
 ## How To Use The App
 
 After `make up-detached`:
@@ -301,6 +307,51 @@ Suggested demo:
   - summary metrics
 
 This is the best page for explaining the backend story during an interview.
+
+## Deployment: Render
+
+This repo now includes a [render.yaml](/Users/joe/Desktop/sand/rate_limiter/render.yaml) Blueprint for a public demo deployment:
+
+- `distributed-rate-limiter-api` as a Docker web service
+- `distributed-rate-limiter-web` as a static site
+- `distributed-rate-limiter-db` as Postgres
+- `distributed-rate-limiter-redis` as Render Key Value
+
+The API service runs `demo-bootstrap && rate-limiter` on startup in the Render deployment, so the public demo key and seeded policies are recreated automatically if they are missing.
+
+### Render Steps
+
+1. Push this repo to GitHub.
+2. In Render, create a new Blueprint from the repo.
+3. When Render prompts for `PUBLIC_DEMO_RAW_API_KEY`, provide a long random key that starts with `rls_live_`.
+4. Let Render provision the API, static site, Postgres, and Key Value services.
+5. Open the API service in Render and copy its public URL.
+6. Set `VITE_API_BASE_URL` on the `distributed-rate-limiter-web` static site to that API URL, then redeploy the static site.
+
+Example demo key generation:
+
+```bash
+printf 'rls_live_%s\n' "$(openssl rand -hex 24)"
+```
+
+Recommended Render values:
+
+- `PUBLIC_DEMO_MODE=true`
+- `CORS_ALLOWED_ORIGIN=*`
+- `REDIS_URL` from the Key Value internal connection string
+- `POSTGRES_DSN` from the Postgres connection string
+
+Why this setup works:
+
+- the API honors Render's `PORT` environment variable automatically
+- Redis connections now accept `redis://` / `rediss://` URLs
+- public demo mode disables admin mutations but keeps read-only policy and bucket inspection visible
+- the static site can stay thin while the Go service remains the main artifact
+
+### Render Caveats
+
+- The static site still needs the API URL wired into `VITE_API_BASE_URL`, because Blueprint files cannot automatically interpolate another service's public URL into a static-site build.
+- Free Render services are fine for a portfolio demo, but they are not production-grade and may sleep, restart, or lose free Key Value data.
 
 ## Manual API Examples
 

@@ -1,0 +1,56 @@
+services:
+  - type: keyvalue
+    name: distributed-rate-limiter-redis
+    plan: free
+    ipAllowList: []
+
+  - type: web
+    name: distributed-rate-limiter-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerCommand: /bin/sh -c "demo-bootstrap && rate-limiter"
+    healthCheckPath: /healthz
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PUBLIC_DEMO_MODE
+        value: "true"
+      - key: PUBLIC_DEMO_RAW_API_KEY
+        sync: false
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: KEY_HASH_PEPPER
+        generateValue: true
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: distributed-rate-limiter-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: distributed-rate-limiter-redis
+          type: keyvalue
+          property: connectionString
+      - key: REDIS_API_KEY_CACHE_TTL
+        value: 15m
+      - key: CORS_ALLOWED_ORIGIN
+        value: "*"
+
+  - type: web
+    name: distributed-rate-limiter-web
+    runtime: static
+    buildCommand: cd web && npm install && npm run build
+    staticPublishPath: ./web/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+databases:
+  - name: distributed-rate-limiter-db
+    plan: free
+    postgresMajorVersion: "16"
+    databaseName: rate_limiter

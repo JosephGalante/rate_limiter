@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/hex"
+	"fmt"
 	"strings"
 )
 
@@ -41,4 +42,18 @@ func (c *APIKeyCodec) Hash(rawKey string) string {
 	mac := hmac.New(sha256.New, c.pepper)
 	mac.Write([]byte(rawKey))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func (c *APIKeyCodec) Prefix(rawKey string) (string, error) {
+	rawKey = strings.TrimSpace(rawKey)
+	if !strings.HasPrefix(rawKey, rawKeyPrefix) {
+		return "", fmt.Errorf("raw api key must start with %s", rawKeyPrefix)
+	}
+
+	prefixLength := len(rawKeyPrefix) + displayPrefixLength
+	if len(rawKey) < prefixLength {
+		return "", fmt.Errorf("raw api key must be at least %d characters long", prefixLength)
+	}
+
+	return rawKey[:prefixLength], nil
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/joe/distributed-rate-limiter/internal/config"
+	"github.com/joe/distributed-rate-limiter/internal/handlers"
 )
 
 func TestHealthRoute(t *testing.T) {
@@ -56,6 +57,40 @@ func TestAdminRoutesAcceptConfiguredBearerToken(t *testing.T) {
 	}
 }
 
+func TestPublicConfigRouteIsMounted(t *testing.T) {
+	router := New(testConfig(), testLogger(), "test", time.Unix(0, 0).UTC(), Dependencies{
+		PublicConfig: handlers.NewPublicConfigHandler(config.DemoConfig{}, nil),
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/public/config", nil)
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+}
+
+func TestDemoModeDisablesPolicyMutationRoutes(t *testing.T) {
+	cfg := testConfig()
+	cfg.Demo.PublicMode = true
+
+	router := New(cfg, testLogger(), "test", time.Unix(0, 0).UTC(), Dependencies{
+		Policies: handlers.NewPoliciesHandler(nil),
+	})
+
+	request := httptest.NewRequest(http.MethodPost, "/api/admin/policies", strings.NewReader(`{}`))
+	request.Header.Set("Authorization", "Bearer test-admin-token")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d", recorder.Code)
+	}
+}
+
 func TestProtectedRouteScaffoldIsMounted(t *testing.T) {
 	router := New(testConfig(), testLogger(), "test", time.Unix(0, 0).UTC(), Dependencies{})
 
@@ -82,6 +117,7 @@ func testConfig() config.Config {
 		Admin: config.AdminConfig{
 			Token: "test-admin-token",
 		},
+		Demo: config.DemoConfig{},
 	}
 }
 
