@@ -57,7 +57,7 @@ func TestServiceCreateAndList(t *testing.T) {
 
 	resetPolicyTables(t, ctx, pool)
 
-	service := NewService(dbsqlc.New(pool))
+	service := NewService(dbsqlc.New(pool), nil)
 	created, err := service.Create(ctx, CreatePolicyInput{
 		ScopeType:             ScopeGlobal,
 		Capacity:              20,
@@ -99,7 +99,7 @@ func TestServiceRejectsDuplicateActiveGlobalPolicy(t *testing.T) {
 
 	resetPolicyTables(t, ctx, pool)
 
-	service := NewService(dbsqlc.New(pool))
+	service := NewService(dbsqlc.New(pool), nil)
 	_, err = service.Create(ctx, CreatePolicyInput{
 		ScopeType:             ScopeGlobal,
 		Capacity:              20,
@@ -138,7 +138,7 @@ func TestServiceUpdate(t *testing.T) {
 
 	resetPolicyTables(t, ctx, pool)
 
-	service := NewService(dbsqlc.New(pool))
+	service := NewService(dbsqlc.New(pool), nil)
 	created, err := service.Create(ctx, CreatePolicyInput{
 		ScopeType:             ScopeGlobal,
 		Capacity:              20,
@@ -186,7 +186,7 @@ func TestServiceDeactivate(t *testing.T) {
 
 	resetPolicyTables(t, ctx, pool)
 
-	service := NewService(dbsqlc.New(pool))
+	service := NewService(dbsqlc.New(pool), nil)
 	created, err := service.Create(ctx, CreatePolicyInput{
 		ScopeType:             ScopeGlobal,
 		Capacity:              20,

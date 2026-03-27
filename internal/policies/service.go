@@ -71,12 +71,26 @@ type UpdatePolicyInput struct {
 	RefillIntervalSeconds int32
 }
 
-type Service struct {
-	queries *dbsqlc.Queries
+type Projector interface {
+	SyncPolicy(ctx context.Context, previous *Policy, current Policy) error
+	RemovePolicy(ctx context.Context, policy Policy) error
+	ReplacePolicies(ctx context.Context, policies []Policy) error
 }
 
-func NewService(queries *dbsqlc.Queries) *Service {
-	return &Service{queries: queries}
+type Service struct {
+	queries   *dbsqlc.Queries
+	projector Projector
+}
+
+func NewService(queries *dbsqlc.Queries, projector Projector) *Service {
+	if projector == nil {
+		projector = noopProjector{}
+	}
+
+	return &Service{
+		queries:   queries,
+		projector: projector,
+	}
 }
 
 func (s *Service) Create(ctx context.Context, input CreatePolicyInput) (Policy, error) {
@@ -97,7 +111,12 @@ func (s *Service) Create(ctx context.Context, input CreatePolicyInput) (Policy, 
 		return Policy{}, translateWriteError(err)
 	}
 
-	return policyFromRecord(record), nil
+	policy := policyFromRecord(record)
+	if err := s.projector.SyncPolicy(ctx, nil, policy); err != nil {
+		return Policy{}, fmt.Errorf("sync policy projection: %w", err)
+	}
+
+	return policy, nil
 }
 
 func (s *Service) List(ctx context.Context) ([]Policy, error) {
@@ -112,6 +131,24 @@ func (s *Service) List(ctx context.Context) ([]Policy, error) {
 	}
 
 	return policies, nil
+}
+
+func (s *Service) RebuildProjection(ctx context.Context) error {
+	records, err := s.queries.ListActiveRateLimitPolicies(ctx)
+	if err != nil {
+		return fmt.Errorf("list active policies: %w", err)
+	}
+
+	activePolicies := make([]Policy, 0, len(records))
+	for _, record := range records {
+		activePolicies = append(activePolicies, policyFromRecord(record))
+	}
+
+	if err := s.projector.ReplacePolicies(ctx, activePolicies); err != nil {
+		return fmt.Errorf("replace policy projection: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdatePolicyInput) (Policy, error) {
@@ -150,7 +187,13 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdatePolicyIn
 		return Policy{}, translateWriteError(err)
 	}
 
-	return policyFromRecord(record), nil
+	previous := policyFromRecord(existing)
+	policy := policyFromRecord(record)
+	if err := s.projector.SyncPolicy(ctx, &previous, policy); err != nil {
+		return Policy{}, fmt.Errorf("sync policy projection: %w", err)
+	}
+
+	return policy, nil
 }
 
 func (s *Service) Deactivate(ctx context.Context, id uuid.UUID) (Policy, error) {
@@ -163,7 +206,12 @@ func (s *Service) Deactivate(ctx context.Context, id uuid.UUID) (Policy, error) 
 		return Policy{}, fmt.Errorf("deactivate policy: %w", err)
 	}
 
-	return policyFromRecord(record), nil
+	policy := policyFromRecord(record)
+	if err := s.projector.RemovePolicy(ctx, policy); err != nil {
+		return Policy{}, fmt.Errorf("remove policy projection: %w", err)
+	}
+
+	return policy, nil
 }
 
 func validateCreateInput(input CreatePolicyInput) (CreatePolicyInput, error) {
@@ -288,4 +336,18 @@ func policyFromRecord(record dbsqlc.RateLimitPolicy) Policy {
 	}
 
 	return policy
+}
+
+type noopProjector struct{}
+
+func (noopProjector) SyncPolicy(context.Context, *Policy, Policy) error {
+	return nil
+}
+
+func (noopProjector) RemovePolicy(context.Context, Policy) error {
+	return nil
+}
+
+func (noopProjector) ReplacePolicies(context.Context, []Policy) error {
+	return nil
 }
