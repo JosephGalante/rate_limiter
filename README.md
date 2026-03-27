@@ -317,14 +317,14 @@ This is the best page for explaining the backend story during an interview.
 
 ## Deployment: Render
 
-This repo now includes a [render.yaml](/Users/joe/Desktop/sand/rate_limiter/render.yaml) Blueprint for a public demo deployment:
+This repo now includes a [render.yaml](render.yaml) Blueprint for a public demo deployment:
 
 - `distributed-rate-limiter-api` as a Docker web service
 - `distributed-rate-limiter-web` as a static site
 - `distributed-rate-limiter-db` as Postgres
 - `distributed-rate-limiter-redis` as Render Key Value
 
-The API service runs `demo-bootstrap && rate-limiter` on startup in the Render deployment, so the public demo key and seeded policies are recreated automatically if they are missing.
+The API service uses the startup sequence `migrate-db`, then `demo-bootstrap`, then `rate-limiter`, so schema setup, the public demo key, and the seeded policies are recreated automatically if they are missing.
 
 ### Render Steps
 
