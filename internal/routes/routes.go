@@ -45,12 +45,14 @@ func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.
 		if dependencies.Policies != nil {
 			r.Get("/policies", dependencies.Policies.List)
 			r.Post("/policies", dependencies.Policies.Create)
+			r.Put("/policies/{policyID}", dependencies.Policies.Update)
+			r.Post("/policies/{policyID}/deactivate", dependencies.Policies.Deactivate)
 		} else {
 			r.Get("/policies", stubHandler.NotImplemented("list policies"))
 			r.Post("/policies", stubHandler.NotImplemented("create policy"))
+			r.Put("/policies/{policyID}", stubHandler.NotImplemented("update policy"))
+			r.Post("/policies/{policyID}/deactivate", stubHandler.NotImplemented("deactivate policy"))
 		}
-		r.Put("/policies/{policyID}", stubHandler.NotImplemented("update policy"))
-		r.Post("/policies/{policyID}/deactivate", stubHandler.NotImplemented("deactivate policy"))
 		r.Get("/inspect/effective-policy", stubHandler.NotImplemented("inspect effective policy"))
 		r.Get("/inspect/bucket", stubHandler.NotImplemented("inspect bucket state"))
 		r.Get("/metrics/summary", stubHandler.NotImplemented("inspect summary metrics"))

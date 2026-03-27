@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -30,6 +31,7 @@ var (
 	ErrInvalidRefillInterval = errors.New("refill_interval_seconds must be greater than zero")
 	ErrPolicyConflict        = errors.New("an active policy already exists for that scope")
 	ErrScopedAPIKeyNotFound  = errors.New("scope_identifier does not reference an existing api key")
+	ErrPolicyNotFound        = errors.New("policy not found")
 )
 
 var validRoutePatterns = map[string]struct{}{
@@ -52,6 +54,15 @@ type Policy struct {
 }
 
 type CreatePolicyInput struct {
+	ScopeType             string
+	ScopeIdentifier       *uuid.UUID
+	RoutePattern          *string
+	Capacity              int32
+	RefillTokens          int32
+	RefillIntervalSeconds int32
+}
+
+type UpdatePolicyInput struct {
 	ScopeType             string
 	ScopeIdentifier       *uuid.UUID
 	RoutePattern          *string
@@ -101,6 +112,58 @@ func (s *Service) List(ctx context.Context) ([]Policy, error) {
 	}
 
 	return policies, nil
+}
+
+func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdatePolicyInput) (Policy, error) {
+	existing, err := s.queries.GetRateLimitPolicy(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Policy{}, ErrPolicyNotFound
+		}
+
+		return Policy{}, fmt.Errorf("get policy: %w", err)
+	}
+
+	normalized, err := validateCreateInput(CreatePolicyInput{
+		ScopeType:             input.ScopeType,
+		ScopeIdentifier:       input.ScopeIdentifier,
+		RoutePattern:          input.RoutePattern,
+		Capacity:              input.Capacity,
+		RefillTokens:          input.RefillTokens,
+		RefillIntervalSeconds: input.RefillIntervalSeconds,
+	})
+	if err != nil {
+		return Policy{}, err
+	}
+
+	record, err := s.queries.UpdateRateLimitPolicy(ctx, dbsqlc.UpdateRateLimitPolicyParams{
+		ID:                    id,
+		ScopeType:             normalized.ScopeType,
+		ScopeIdentifier:       nullableUUID(normalized.ScopeIdentifier),
+		RoutePattern:          normalized.RoutePattern,
+		Capacity:              normalized.Capacity,
+		RefillTokens:          normalized.RefillTokens,
+		RefillIntervalSeconds: normalized.RefillIntervalSeconds,
+		IsActive:              existing.IsActive,
+	})
+	if err != nil {
+		return Policy{}, translateWriteError(err)
+	}
+
+	return policyFromRecord(record), nil
+}
+
+func (s *Service) Deactivate(ctx context.Context, id uuid.UUID) (Policy, error) {
+	record, err := s.queries.DeactivateRateLimitPolicy(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Policy{}, ErrPolicyNotFound
+		}
+
+		return Policy{}, fmt.Errorf("deactivate policy: %w", err)
+	}
+
+	return policyFromRecord(record), nil
 }
 
 func validateCreateInput(input CreatePolicyInput) (CreatePolicyInput, error) {

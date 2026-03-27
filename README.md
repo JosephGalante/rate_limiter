@@ -12,6 +12,7 @@ This repository is being built in reviewable chunks. The current state includes 
 - `sqlc` query definitions and generated repository layer scaffold
 - API key admin endpoints for create, list, deactivate, and raw-key hashing
 - Policy admin create/list endpoints with deterministic scope validation
+- Policy admin update/deactivate endpoints
 - Docker Compose workflow for API, Postgres, and Redis
 
 ## Run the scaffold

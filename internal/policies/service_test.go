@@ -121,6 +121,92 @@ func TestServiceRejectsDuplicateActiveGlobalPolicy(t *testing.T) {
 	}
 }
 
+func TestServiceUpdate(t *testing.T) {
+	dsn := os.Getenv("POSTGRES_DSN")
+	if dsn == "" {
+		t.Skip("POSTGRES_DSN is not set")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := db.Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer pool.Close()
+
+	resetPolicyTables(t, ctx, pool)
+
+	service := NewService(dbsqlc.New(pool))
+	created, err := service.Create(ctx, CreatePolicyInput{
+		ScopeType:             ScopeGlobal,
+		Capacity:              20,
+		RefillTokens:          5,
+		RefillIntervalSeconds: 60,
+	})
+	if err != nil {
+		t.Fatalf("create policy: %v", err)
+	}
+
+	updated, err := service.Update(ctx, created.ID, UpdatePolicyInput{
+		ScopeType:             ScopeRoute,
+		RoutePattern:          stringPointer("report"),
+		Capacity:              8,
+		RefillTokens:          2,
+		RefillIntervalSeconds: 30,
+	})
+	if err != nil {
+		t.Fatalf("update policy: %v", err)
+	}
+
+	if updated.ScopeType != ScopeRoute {
+		t.Fatalf("expected scope type %q, got %q", ScopeRoute, updated.ScopeType)
+	}
+
+	if updated.RoutePattern == nil || *updated.RoutePattern != "report" {
+		t.Fatalf("expected route pattern report, got %#v", updated.RoutePattern)
+	}
+}
+
+func TestServiceDeactivate(t *testing.T) {
+	dsn := os.Getenv("POSTGRES_DSN")
+	if dsn == "" {
+		t.Skip("POSTGRES_DSN is not set")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := db.Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer pool.Close()
+
+	resetPolicyTables(t, ctx, pool)
+
+	service := NewService(dbsqlc.New(pool))
+	created, err := service.Create(ctx, CreatePolicyInput{
+		ScopeType:             ScopeGlobal,
+		Capacity:              20,
+		RefillTokens:          5,
+		RefillIntervalSeconds: 60,
+	})
+	if err != nil {
+		t.Fatalf("create policy: %v", err)
+	}
+
+	deactivated, err := service.Deactivate(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("deactivate policy: %v", err)
+	}
+
+	if deactivated.IsActive {
+		t.Fatalf("expected policy to be inactive after deactivation")
+	}
+}
+
 func resetPolicyTables(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
 
