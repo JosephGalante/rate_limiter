@@ -19,12 +19,13 @@ This repository is being built in reviewable chunks. The current state includes 
 - Protected API endpoints enforced with API key auth, policy resolution, Redis buckets, and rate-limit headers
 - Bucket inspection, summary metrics, and blocked-request audit logging for observability
 - React + TypeScript request simulator app under `web/`
+- React routing with Request Simulator, Policy Admin, and Bucket Inspector pages
 - Docker Compose workflow for API, Postgres, and Redis
 
 ## Run the scaffold
 
 ```bash
-docker compose up --build api postgres redis
+docker compose up --build api web postgres redis
 ```
 
 Apply migrations:
@@ -51,6 +52,12 @@ Start the request simulator UI:
 cd web
 npm install
 npm run dev
+```
+
+Or run the backend and frontend together in Compose:
+
+```bash
+docker compose up --build api web postgres redis
 ```
 
 Admin ping:

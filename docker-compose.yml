@@ -24,6 +24,20 @@ services:
       - postgres
       - redis
 
+  web:
+    image: node:24-alpine
+    working_dir: /app/web
+    command: ["sh", "-c", "npm install && npm run dev"]
+    environment:
+      VITE_API_BASE_URL: "http://localhost:8080"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/app
+      - web-node-modules:/app/web/node_modules
+    depends_on:
+      - api
+
   migrate:
     image: migrate/migrate:v4.18.1
     command:
@@ -72,3 +86,4 @@ volumes:
   go-mod-cache:
   postgres-data:
   redis-data:
+  web-node-modules:

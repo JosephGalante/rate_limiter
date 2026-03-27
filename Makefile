@@ -1,5 +1,5 @@
 up:
-	docker compose up --build api postgres redis
+	docker compose up --build api web postgres redis
 
 down:
 	docker compose down

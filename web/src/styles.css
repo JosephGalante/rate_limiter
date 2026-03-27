@@ -68,6 +68,10 @@ code {
   font-size: 1.05rem;
 }
 
+.connection-panel {
+  margin-top: 0;
+}
+
 .panel {
   margin-top: 1.25rem;
   padding: 1.25rem;
@@ -106,6 +110,10 @@ code {
 
 .field-row {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-row--triple {
+  grid-template-columns: 1.2fr 1fr 0.7fr;
 }
 
 input,
@@ -177,6 +185,39 @@ select {
   margin-top: 0.3rem;
 }
 
+.selection-card--compact {
+  margin-top: 0;
+  align-self: end;
+}
+
+.page-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.tab-nav {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.tab-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.72rem 1rem;
+  background: rgba(23, 32, 51, 0.06);
+  color: #172033;
+  text-decoration: none;
+}
+
+.tab-link--active {
+  background: linear-gradient(135deg, #172033 0%, #34528a 100%);
+  color: white;
+}
+
 .hint {
   margin: 0;
   color: #657186;
@@ -194,6 +235,76 @@ select {
 .log-list {
   display: grid;
   gap: 0.75rem;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.8rem 0.7rem;
+  border-bottom: 1px solid rgba(23, 32, 51, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  color: #4b5870;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.table-actions {
+  white-space: nowrap;
+}
+
+.text-button {
+  border: none;
+  background: transparent;
+  color: #244b8a;
+  cursor: pointer;
+  padding: 0;
+}
+
+.text-button + .text-button {
+  margin-left: 0.8rem;
+}
+
+.text-button.danger {
+  color: #9f2d23;
+}
+
+.detail-card {
+  border-radius: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(23, 32, 51, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.detail-card span,
+.detail-card strong,
+.detail-card small {
+  display: block;
+}
+
+.detail-card strong {
+  margin: 0.35rem 0 0.5rem;
+  word-break: break-word;
 }
 
 .log-row {
@@ -237,6 +348,7 @@ select {
 @media (max-width: 820px) {
   .grid-two,
   .field-row,
+  .field-row--triple,
   .stats {
     grid-template-columns: 1fr;
   }

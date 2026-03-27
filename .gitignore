@@ -6,3 +6,4 @@ dist/
 coverage.out
 tmp/
 web/node_modules/
+*.tsbuildinfo
