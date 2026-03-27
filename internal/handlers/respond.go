@@ -32,6 +32,10 @@ func WriteUnauthorized(w http.ResponseWriter, code string, message string) {
 	writeError(w, http.StatusUnauthorized, code, message)
 }
 
+func WriteBadRequest(w http.ResponseWriter, code string, message string) {
+	writeError(w, http.StatusBadRequest, code, message)
+}
+
 func WriteInternalServerError(w http.ResponseWriter) {
 	writeError(w, http.StatusInternalServerError, "internal_server_error", "an unexpected error occurred")
 }

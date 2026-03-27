@@ -9,7 +9,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joe/distributed-rate-limiter/internal/auth"
 	"github.com/joe/distributed-rate-limiter/internal/config"
+	"github.com/joe/distributed-rate-limiter/internal/db"
+	dbsqlc "github.com/joe/distributed-rate-limiter/internal/db/sqlc"
+	"github.com/joe/distributed-rate-limiter/internal/handlers"
+	"github.com/joe/distributed-rate-limiter/internal/redisstate"
 	"github.com/joe/distributed-rate-limiter/internal/routes"
 )
 
@@ -22,7 +27,30 @@ func main() {
 	}
 
 	logger := newLogger(cfg)
-	router := routes.New(cfg, logger, version, time.Now().UTC())
+	startupContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	dbPool, err := db.Open(startupContext, cfg.Postgres.DSN)
+	if err != nil {
+		panic(err)
+	}
+	defer dbPool.Close()
+
+	if err := dbPool.Ping(startupContext); err != nil {
+		panic(err)
+	}
+
+	redisClient := redisstate.NewClient(cfg.Redis.Addr, cfg.Redis.DB)
+	defer redisClient.Close()
+
+	apiKeyQueries := dbsqlc.New(dbPool)
+	apiKeyCodec := auth.NewAPIKeyCodec(cfg.Security.KeyHashPepper)
+	apiKeyCache := redisstate.NewAPIKeyAuthCache(redisClient, cfg.Redis.APIKeyCacheTTL)
+	apiKeyService := auth.NewAPIKeyService(apiKeyQueries, apiKeyCodec, apiKeyCache, logger)
+
+	router := routes.New(cfg, logger, version, time.Now().UTC(), routes.Dependencies{
+		APIKeys: handlers.NewAPIKeysHandler(apiKeyService),
+	})
 
 	server := &http.Server{
 		Addr:              cfg.Server.Addr,
@@ -37,6 +65,7 @@ func main() {
 		logger.Info("server starting",
 			slog.String("addr", cfg.Server.Addr),
 			slog.String("environment", cfg.AppEnv),
+			slog.String("redis_addr", cfg.Redis.Addr),
 		)
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

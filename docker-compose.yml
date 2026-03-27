@@ -12,6 +12,7 @@ services:
       POSTGRES_DSN: "postgres://postgres:postgres@postgres:5432/rate_limiter?sslmode=disable"
       REDIS_ADDR: "redis:6379"
       REDIS_DB: "0"
+      REDIS_API_KEY_CACHE_TTL: "15m"
       KEY_HASH_PEPPER: "dev-key-pepper"
       CORS_ALLOWED_ORIGIN: "http://localhost:5173"
     ports:

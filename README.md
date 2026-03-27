@@ -10,6 +10,7 @@ This repository is being built in reviewable chunks. The current state includes 
 - Route registry for protected endpoints and request costs
 - Postgres schema and migrations for users, API keys, rate limit policies, and blocked-request audit logs
 - `sqlc` query definitions and generated repository layer scaffold
+- API key admin endpoints for create, list, deactivate, and raw-key hashing
 - Docker Compose workflow for API, Postgres, and Redis
 
 ## Run the scaffold
@@ -40,4 +41,14 @@ Admin ping:
 
 ```bash
 curl -H 'Authorization: Bearer dev-admin-token' http://localhost:8080/api/admin/ping
+```
+
+Create an API key:
+
+```bash
+curl -X POST \
+  -H 'Authorization: Bearer dev-admin-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"primary"}' \
+  http://localhost:8080/api/admin/api-keys
 ```

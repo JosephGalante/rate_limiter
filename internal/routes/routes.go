@@ -13,7 +13,11 @@ import (
 	appmiddleware "github.com/joe/distributed-rate-limiter/internal/middleware"
 )
 
-func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.Time) http.Handler {
+type Dependencies struct {
+	APIKeys *handlers.APIKeysHandler
+}
+
+func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.Time, dependencies Dependencies) http.Handler {
 	router := chi.NewRouter()
 	router.Use(chimiddleware.RequestID)
 	router.Use(chimiddleware.RealIP)
@@ -28,9 +32,15 @@ func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.
 	router.Route("/api/admin", func(r chi.Router) {
 		r.Use(appmiddleware.AdminAuth(cfg.Admin.Token))
 		r.Get("/ping", stubHandler.AdminPing)
-		r.Get("/api-keys", stubHandler.NotImplemented("list API keys"))
-		r.Post("/api-keys", stubHandler.NotImplemented("create API key"))
-		r.Post("/api-keys/{apiKeyID}/deactivate", stubHandler.NotImplemented("deactivate API key"))
+		if dependencies.APIKeys != nil {
+			r.Get("/api-keys", dependencies.APIKeys.List)
+			r.Post("/api-keys", dependencies.APIKeys.Create)
+			r.Post("/api-keys/{apiKeyID}/deactivate", dependencies.APIKeys.Deactivate)
+		} else {
+			r.Get("/api-keys", stubHandler.NotImplemented("list API keys"))
+			r.Post("/api-keys", stubHandler.NotImplemented("create API key"))
+			r.Post("/api-keys/{apiKeyID}/deactivate", stubHandler.NotImplemented("deactivate API key"))
+		}
 		r.Get("/policies", stubHandler.NotImplemented("list policies"))
 		r.Post("/policies", stubHandler.NotImplemented("create policy"))
 		r.Put("/policies/{policyID}", stubHandler.NotImplemented("update policy"))

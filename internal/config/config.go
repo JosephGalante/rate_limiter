@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -30,8 +31,9 @@ type PostgresConfig struct {
 }
 
 type RedisConfig struct {
-	Addr string
-	DB   int
+	Addr           string
+	DB             int
+	APIKeyCacheTTL time.Duration
 }
 
 type SecurityConfig struct {
@@ -71,6 +73,12 @@ func Load() (Config, error) {
 		},
 	}
 
+	apiKeyCacheTTL, err := durationFromEnv("REDIS_API_KEY_CACHE_TTL", 15*time.Minute)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.Redis.APIKeyCacheTTL = apiKeyCacheTTL
+
 	if strings.TrimSpace(cfg.Admin.Token) == "" {
 		return Config{}, fmt.Errorf("ADMIN_TOKEN must not be empty")
 	}
@@ -99,6 +107,20 @@ func intFromEnv(key string, fallback int) (int, error) {
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
 		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
+	}
+
+	return parsed, nil
+}
+
+func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+
+	parsed, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be a valid duration: %w", key, err)
 	}
 
 	return parsed, nil

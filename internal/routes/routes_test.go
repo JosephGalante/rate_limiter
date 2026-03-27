@@ -13,7 +13,7 @@ import (
 )
 
 func TestHealthRoute(t *testing.T) {
-	router := New(testConfig(), testLogger(), "test", time.Unix(0, 0).UTC())
+	router := New(testConfig(), testLogger(), "test", time.Unix(0, 0).UTC(), Dependencies{})
 
 	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	recorder := httptest.NewRecorder()
@@ -30,7 +30,7 @@ func TestHealthRoute(t *testing.T) {
 }
 
 func TestAdminRoutesRequireBearerToken(t *testing.T) {
-	router := New(testConfig(), testLogger(), "test", time.Unix(0, 0).UTC())
+	router := New(testConfig(), testLogger(), "test", time.Unix(0, 0).UTC(), Dependencies{})
 
 	request := httptest.NewRequest(http.MethodGet, "/api/admin/ping", nil)
 	recorder := httptest.NewRecorder()
@@ -43,7 +43,7 @@ func TestAdminRoutesRequireBearerToken(t *testing.T) {
 }
 
 func TestAdminRoutesAcceptConfiguredBearerToken(t *testing.T) {
-	router := New(testConfig(), testLogger(), "test", time.Unix(0, 0).UTC())
+	router := New(testConfig(), testLogger(), "test", time.Unix(0, 0).UTC(), Dependencies{})
 
 	request := httptest.NewRequest(http.MethodGet, "/api/admin/ping", nil)
 	request.Header.Set("Authorization", "Bearer test-admin-token")
@@ -57,7 +57,7 @@ func TestAdminRoutesAcceptConfiguredBearerToken(t *testing.T) {
 }
 
 func TestProtectedRouteScaffoldIsMounted(t *testing.T) {
-	router := New(testConfig(), testLogger(), "test", time.Unix(0, 0).UTC())
+	router := New(testConfig(), testLogger(), "test", time.Unix(0, 0).UTC(), Dependencies{})
 
 	request := httptest.NewRequest(http.MethodPost, "/api/protected/orders", nil)
 	recorder := httptest.NewRecorder()
