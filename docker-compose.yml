@@ -23,6 +23,35 @@ services:
       - postgres
       - redis
 
+  migrate:
+    image: migrate/migrate:v4.18.1
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://postgres:postgres@postgres:5432/rate_limiter?sslmode=disable",
+        "up",
+      ]
+    volumes:
+      - ./migrations:/migrations
+    depends_on:
+      - postgres
+
+  sqlc:
+    image: golang:1.23-alpine
+    working_dir: /workspace
+    command:
+      [
+        "go",
+        "run",
+        "github.com/sqlc-dev/sqlc/cmd/sqlc@v1.27.0",
+        "generate",
+      ]
+    volumes:
+      - ./:/workspace
+      - go-mod-cache:/go/pkg/mod
+
   postgres:
     image: postgres:16-alpine
     environment:

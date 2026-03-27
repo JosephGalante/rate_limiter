@@ -1,6 +1,6 @@
 # Distributed Rate Limiting Service
 
-This repository is being built in reviewable chunks. The current chunk scaffolds the Go backend so it can boot in Docker and exposes the initial health, admin, and protected route surfaces.
+This repository is being built in reviewable chunks. The current state includes a bootable Go backend scaffold plus the initial Postgres schema, migration workflow, and generated `sqlc` query layer.
 
 ## Current status
 
@@ -8,12 +8,26 @@ This repository is being built in reviewable chunks. The current chunk scaffolds
 - Environment-based config loading
 - Static admin bearer auth middleware
 - Route registry for protected endpoints and request costs
+- Postgres schema and migrations for users, API keys, rate limit policies, and blocked-request audit logs
+- `sqlc` query definitions and generated repository layer scaffold
 - Docker Compose workflow for API, Postgres, and Redis
 
 ## Run the scaffold
 
 ```bash
 docker compose up --build api postgres redis
+```
+
+Apply migrations:
+
+```bash
+docker compose run --rm migrate
+```
+
+Regenerate `sqlc` code:
+
+```bash
+docker compose run --rm sqlc
 ```
 
 Health check:
