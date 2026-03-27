@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joe/distributed-rate-limiter/internal/audit"
 	"github.com/joe/distributed-rate-limiter/internal/auth"
 	"github.com/joe/distributed-rate-limiter/internal/config"
 	"github.com/joe/distributed-rate-limiter/internal/db"
@@ -50,6 +51,7 @@ func main() {
 	policyProjectionStore := redisstate.NewPolicyProjectionStore(redisClient)
 	bucketStore := redisstate.NewBucketStore(redisClient)
 	apiKeyService := auth.NewAPIKeyService(queries, apiKeyCodec, apiKeyCache, logger)
+	auditService := audit.NewService(queries)
 	policyService := policies.NewService(queries, policyProjectionStore)
 	policyResolver := policies.NewResolver(policyProjectionStore)
 
@@ -60,9 +62,11 @@ func main() {
 	router := routes.New(cfg, logger, version, time.Now().UTC(), routes.Dependencies{
 		APIKeys:   handlers.NewAPIKeysHandler(apiKeyService),
 		Policies:  handlers.NewPoliciesHandler(policyService),
-		Inspector: handlers.NewInspectorHandler(policyResolver),
+		Inspector: handlers.NewInspectorHandler(policyResolver, bucketStore),
+		Metrics:   handlers.NewMetricsHandler(bucketStore),
 		Protected: handlers.NewProtectedHandler(),
 
+		BlockedAuditor:   auditService,
 		ProtectedAPIKeys: apiKeyService,
 		PolicyResolver:   policyResolver,
 		BucketStore:      bucketStore,

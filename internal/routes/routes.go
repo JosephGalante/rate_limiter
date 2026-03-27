@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/joe/distributed-rate-limiter/internal/audit"
 	"github.com/joe/distributed-rate-limiter/internal/auth"
 	"github.com/joe/distributed-rate-limiter/internal/config"
 	"github.com/joe/distributed-rate-limiter/internal/handlers"
@@ -20,8 +21,10 @@ type Dependencies struct {
 	APIKeys   *handlers.APIKeysHandler
 	Policies  *handlers.PoliciesHandler
 	Inspector *handlers.InspectorHandler
+	Metrics   *handlers.MetricsHandler
 	Protected *handlers.ProtectedHandler
 
+	BlockedAuditor   *audit.Service
 	ProtectedAPIKeys *auth.APIKeyService
 	PolicyResolver   *policies.Resolver
 	BucketStore      *redisstate.BucketStore
@@ -64,17 +67,22 @@ func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.
 		}
 		if dependencies.Inspector != nil {
 			r.Get("/inspect/effective-policy", dependencies.Inspector.EffectivePolicy)
+			r.Get("/inspect/bucket", dependencies.Inspector.Bucket)
 		} else {
 			r.Get("/inspect/effective-policy", stubHandler.NotImplemented("inspect effective policy"))
+			r.Get("/inspect/bucket", stubHandler.NotImplemented("inspect bucket state"))
 		}
-		r.Get("/inspect/bucket", stubHandler.NotImplemented("inspect bucket state"))
-		r.Get("/metrics/summary", stubHandler.NotImplemented("inspect summary metrics"))
+		if dependencies.Metrics != nil {
+			r.Get("/metrics/summary", dependencies.Metrics.Summary)
+		} else {
+			r.Get("/metrics/summary", stubHandler.NotImplemented("inspect summary metrics"))
+		}
 	})
 
 	for _, definition := range ProtectedRoutes() {
 		if dependencies.Protected != nil && dependencies.ProtectedAPIKeys != nil && dependencies.PolicyResolver != nil && dependencies.BucketStore != nil {
 			protected := appmiddleware.APIKeyAuth(dependencies.ProtectedAPIKeys)(
-				appmiddleware.EnforceRateLimit(definition.ID, definition.Cost, dependencies.PolicyResolver, dependencies.BucketStore, time.Now)(
+				appmiddleware.EnforceRateLimit(definition.ID, definition.Cost, dependencies.PolicyResolver, dependencies.BucketStore, dependencies.BlockedAuditor, time.Now)(
 					dependencies.Protected.Route(definition.ID, definition.Cost),
 				),
 			)

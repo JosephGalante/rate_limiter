@@ -17,6 +17,7 @@ This repository is being built in reviewable chunks. The current state includes 
 - Effective policy resolution from Redis projection with a precedence-based inspector endpoint
 - Redis-backed token bucket engine with optimistic locking and summary counters
 - Protected API endpoints enforced with API key auth, policy resolution, Redis buckets, and rate-limit headers
+- Bucket inspection, summary metrics, and blocked-request audit logging for observability
 - Docker Compose workflow for API, Postgres, and Redis
 
 ## Run the scaffold

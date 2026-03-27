@@ -123,6 +123,10 @@ func (s *BucketStore) GetBucketSnapshot(ctx context.Context, ref BucketRef) (Buc
 	}, true, nil
 }
 
+func BucketKey(ref BucketRef) string {
+	return bucketKey(ref)
+}
+
 func (s *BucketStore) GetSummaryMetrics(ctx context.Context) (SummaryMetrics, error) {
 	values, err := s.client.HGetAll(ctx, summaryMetricsKey).Result()
 	if err != nil {

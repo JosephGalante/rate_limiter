@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/joe/distributed-rate-limiter/internal/audit"
 	"github.com/joe/distributed-rate-limiter/internal/auth"
 	"github.com/joe/distributed-rate-limiter/internal/policies"
 	"github.com/joe/distributed-rate-limiter/internal/ratelimit"
@@ -40,7 +41,7 @@ func TestEnforceRateLimitAllowsAndSetsHeaders(t *testing.T) {
 			Remaining: 9,
 			ResetAt:   now.Add(60 * time.Second),
 		},
-	}, func() time.Time { return now })
+	}, nil, func() time.Time { return now })
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/protected/ping", nil)
@@ -65,6 +66,7 @@ func TestEnforceRateLimitBlocksAndSetsRetryAfter(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0).UTC()
 	apiKeyID := uuid.MustParse("45c660c2-3205-4919-ac3f-126c09b1b730")
 
+	auditor := &fakeBlockedRequestAuditor{}
 	middleware := EnforceRateLimit("report", 5, fakeEffectivePolicyResolver{
 		resolution: policies.Resolution{
 			Policy: policies.Policy{
@@ -84,7 +86,7 @@ func TestEnforceRateLimitBlocksAndSetsRetryAfter(t *testing.T) {
 			RetryAfter: 90 * time.Second,
 			ResetAt:    now.Add(5 * time.Minute),
 		},
-	}, func() time.Time { return now })
+	}, auditor, func() time.Time { return now })
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/protected/report", nil)
@@ -100,11 +102,17 @@ func TestEnforceRateLimitBlocksAndSetsRetryAfter(t *testing.T) {
 	if recorder.Header().Get("Retry-After") != "90" {
 		t.Fatalf("expected Retry-After to be 90, got %q", recorder.Header().Get("Retry-After"))
 	}
+	if len(auditor.requests) != 1 {
+		t.Fatalf("expected one blocked audit record, got %d", len(auditor.requests))
+	}
+	if auditor.requests[0].RouteID != "report" {
+		t.Fatalf("expected blocked audit route report, got %q", auditor.requests[0].RouteID)
+	}
 }
 
 func TestEnforceRateLimitReturnsServiceUnavailableWithoutPolicy(t *testing.T) {
 	apiKeyID := uuid.MustParse("5f64752a-e567-4d20-bc11-cf8def69f4f2")
-	middleware := EnforceRateLimit("ping", 1, fakeEffectivePolicyResolver{}, fakeBucketConsumer{}, time.Now)
+	middleware := EnforceRateLimit("ping", 1, fakeEffectivePolicyResolver{}, fakeBucketConsumer{}, nil, time.Now)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/protected/ping", nil)
@@ -142,6 +150,20 @@ func (f fakeBucketConsumer) Consume(context.Context, redisstate.BucketRef, ratel
 	return f.decision, nil
 }
 
+type fakeBlockedRequestAuditor struct {
+	requests []audit.BlockedRequest
+	err      error
+}
+
+func (f *fakeBlockedRequestAuditor) LogBlocked(_ context.Context, request audit.BlockedRequest) error {
+	if f.err != nil {
+		return f.err
+	}
+
+	f.requests = append(f.requests, request)
+	return nil
+}
+
 func TestEnforceRateLimitReturnsServiceUnavailableOnBucketFailure(t *testing.T) {
 	apiKeyID := uuid.MustParse("6275915d-bec2-47d2-b8fb-dd0985e76ad8")
 	middleware := EnforceRateLimit("ping", 1, fakeEffectivePolicyResolver{
@@ -156,7 +178,7 @@ func TestEnforceRateLimitReturnsServiceUnavailableOnBucketFailure(t *testing.T) 
 		found: true,
 	}, fakeBucketConsumer{
 		err: redisstate.ErrBucketContention,
-	}, time.Now)
+	}, nil, time.Now)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/protected/ping", nil)
@@ -207,7 +229,7 @@ func TestEnforceRateLimitReturnsServiceUnavailableOnResolverFailure(t *testing.T
 	apiKeyID := uuid.MustParse("51aa3b44-bd44-4f3d-a041-30ad0c17b253")
 	middleware := EnforceRateLimit("ping", 1, fakeEffectivePolicyResolver{
 		err: errors.New("boom"),
-	}, fakeBucketConsumer{}, time.Now)
+	}, fakeBucketConsumer{}, nil, time.Now)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/protected/ping", nil)
