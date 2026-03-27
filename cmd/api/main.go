@@ -50,14 +50,16 @@ func main() {
 	policyProjectionStore := redisstate.NewPolicyProjectionStore(redisClient)
 	apiKeyService := auth.NewAPIKeyService(queries, apiKeyCodec, apiKeyCache, logger)
 	policyService := policies.NewService(queries, policyProjectionStore)
+	policyResolver := policies.NewResolver(policyProjectionStore)
 
 	if err := policyService.RebuildProjection(startupContext); err != nil {
 		panic(err)
 	}
 
 	router := routes.New(cfg, logger, version, time.Now().UTC(), routes.Dependencies{
-		APIKeys:  handlers.NewAPIKeysHandler(apiKeyService),
-		Policies: handlers.NewPoliciesHandler(policyService),
+		APIKeys:   handlers.NewAPIKeysHandler(apiKeyService),
+		Policies:  handlers.NewPoliciesHandler(policyService),
+		Inspector: handlers.NewInspectorHandler(policyResolver),
 	})
 
 	server := &http.Server{

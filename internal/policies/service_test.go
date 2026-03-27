@@ -10,6 +10,7 @@ import (
 
 	"github.com/joe/distributed-rate-limiter/internal/db"
 	dbsqlc "github.com/joe/distributed-rate-limiter/internal/db/sqlc"
+	"github.com/joe/distributed-rate-limiter/internal/testutil"
 )
 
 func TestValidateCreateInput(t *testing.T) {
@@ -54,6 +55,7 @@ func TestServiceCreateAndList(t *testing.T) {
 		t.Fatalf("open db: %v", err)
 	}
 	defer pool.Close()
+	defer testutil.AcquireIntegrationLock(t, ctx, pool)()
 
 	resetPolicyTables(t, ctx, pool)
 
@@ -96,6 +98,7 @@ func TestServiceRejectsDuplicateActiveGlobalPolicy(t *testing.T) {
 		t.Fatalf("open db: %v", err)
 	}
 	defer pool.Close()
+	defer testutil.AcquireIntegrationLock(t, ctx, pool)()
 
 	resetPolicyTables(t, ctx, pool)
 
@@ -135,6 +138,7 @@ func TestServiceUpdate(t *testing.T) {
 		t.Fatalf("open db: %v", err)
 	}
 	defer pool.Close()
+	defer testutil.AcquireIntegrationLock(t, ctx, pool)()
 
 	resetPolicyTables(t, ctx, pool)
 
@@ -183,6 +187,7 @@ func TestServiceDeactivate(t *testing.T) {
 		t.Fatalf("open db: %v", err)
 	}
 	defer pool.Close()
+	defer testutil.AcquireIntegrationLock(t, ctx, pool)()
 
 	resetPolicyTables(t, ctx, pool)
 

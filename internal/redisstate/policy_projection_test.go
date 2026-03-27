@@ -11,6 +11,7 @@ import (
 	"github.com/joe/distributed-rate-limiter/internal/db"
 	dbsqlc "github.com/joe/distributed-rate-limiter/internal/db/sqlc"
 	"github.com/joe/distributed-rate-limiter/internal/policies"
+	"github.com/joe/distributed-rate-limiter/internal/testutil"
 )
 
 func TestPolicyProjectionLifecycleAndRebuild(t *testing.T) {
@@ -28,6 +29,7 @@ func TestPolicyProjectionLifecycleAndRebuild(t *testing.T) {
 		t.Fatalf("open db: %v", err)
 	}
 	defer pool.Close()
+	defer testutil.AcquireIntegrationLock(t, ctx, pool)()
 
 	if _, err := pool.Exec(ctx, "TRUNCATE request_audit_logs, rate_limit_policies, api_keys, users RESTART IDENTITY CASCADE"); err != nil {
 		t.Fatalf("truncate tables: %v", err)

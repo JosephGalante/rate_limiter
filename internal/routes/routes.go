@@ -14,8 +14,9 @@ import (
 )
 
 type Dependencies struct {
-	APIKeys  *handlers.APIKeysHandler
-	Policies *handlers.PoliciesHandler
+	APIKeys   *handlers.APIKeysHandler
+	Policies  *handlers.PoliciesHandler
+	Inspector *handlers.InspectorHandler
 }
 
 func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.Time, dependencies Dependencies) http.Handler {
@@ -53,7 +54,11 @@ func New(cfg config.Config, logger *slog.Logger, version string, startedAt time.
 			r.Put("/policies/{policyID}", stubHandler.NotImplemented("update policy"))
 			r.Post("/policies/{policyID}/deactivate", stubHandler.NotImplemented("deactivate policy"))
 		}
-		r.Get("/inspect/effective-policy", stubHandler.NotImplemented("inspect effective policy"))
+		if dependencies.Inspector != nil {
+			r.Get("/inspect/effective-policy", dependencies.Inspector.EffectivePolicy)
+		} else {
+			r.Get("/inspect/effective-policy", stubHandler.NotImplemented("inspect effective policy"))
+		}
 		r.Get("/inspect/bucket", stubHandler.NotImplemented("inspect bucket state"))
 		r.Get("/metrics/summary", stubHandler.NotImplemented("inspect summary metrics"))
 	})

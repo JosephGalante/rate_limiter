@@ -14,6 +14,7 @@ This repository is being built in reviewable chunks. The current state includes 
 - Policy admin create/list endpoints with deterministic scope validation
 - Policy admin update/deactivate endpoints
 - Redis projection for active policies on policy writes and startup rebuild
+- Effective policy resolution from Redis projection with a precedence-based inspector endpoint
 - Docker Compose workflow for API, Postgres, and Redis
 
 ## Run the scaffold
