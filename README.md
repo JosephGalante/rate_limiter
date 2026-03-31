@@ -6,18 +6,9 @@ This project is intentionally backend-heavy. The UI exists to demonstrate the sy
 
 ## Live Demo
 
-- UI Website: https://distributed-rate-limiter-web.onrender.com
-- API: https://distributed-rate-limiter-api.onrender.com
+- Live app: [distributed-rate-limiter-web.onrender.com](https://distributed-rate-limiter-web.onrender.com)
 - Note: the Render free tier may cold-start on the first request, so the demo can take a few seconds to wake up.
 - Demo walkthrough video: [rate_limiter_demo.mp4](docs/demo/rate_limiter_demo.mp4)
-
-## What It Demonstrates
-
-- Distributed rate limiting with Redis as shared hot-path state
-- Deterministic policy resolution across multiple scope types
-- Clean separation between durable config in Postgres and mutable runtime state in Redis
-- Concurrency-aware Redis mutation without Lua, using optimistic locking
-- Production-style Go service structure with clear boundaries between auth, policy resolution, bucket math, persistence, middleware, and handlers
 
 ## System Overview
 
